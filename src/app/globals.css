@@ -37,6 +37,7 @@
   --map-mobile-height: 14rem;
   --panel-background: #efefe7;
   --error-background: #faeee9;
+  --success-background: #e7f0e9;
 }
 
 @theme inline {
@@ -147,6 +148,45 @@ h1 { font-size: var(--text-heading); letter-spacing: -0.05em; line-height: 1.3; 
 .text-button { min-height: 44px; text-decoration: underline; text-align: left; color: var(--primary); font-size: var(--text-small); }
 .selected-summary { display: flex; flex-direction: column; gap: var(--space-1); width: 100%; border-top: 1px solid var(--border); margin-top: var(--space-6); padding-top: var(--space-4); text-align: left; color: var(--primary); }
 .scope-note { color: var(--muted-foreground); font-size: var(--text-small); margin: var(--space-5) 0 0; }
+.condition-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.62fr); column-gap: var(--space-16); padding-block: var(--space-12) var(--space-16); min-height: 78dvh; align-items: start; }
+.condition-main { min-width: 0; }
+.back-link { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; margin: calc(var(--space-3) * -1) 0 var(--space-8); color: var(--primary); font-size: var(--text-small); text-decoration: underline; }
+.conditions-form { margin-top: var(--space-10); max-width: 48rem; }
+.conditions-form fieldset { min-width: 0; padding: 0 0 var(--space-8); margin: 0 0 var(--space-8); border: 0; border-bottom: 1px solid var(--border); }
+.conditions-form legend { padding: 0; font-size: var(--text-title); font-weight: 650; letter-spacing: -0.025em; margin-bottom: var(--space-5); }
+.field-grid { display: grid; gap: var(--space-5); }
+.schedule-fields { grid-template-columns: minmax(0, 1.35fr) repeat(2, minmax(0, 1fr)); }
+.budget-fields { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: start; }
+.form-field { min-width: 0; }
+.form-field label, .form-label { display: block; margin-bottom: var(--space-2); font-size: var(--text-small); font-weight: 600; }
+.form-field input[type="date"], .form-field input[type="time"], .form-field input[type="text"] { box-sizing: border-box; width: 100%; min-height: var(--control-height); padding: var(--space-2) var(--space-3); color: var(--foreground); border: 1px solid var(--input); border-radius: var(--radius); background: var(--card); }
+.form-field input::placeholder { color: var(--muted-foreground); }
+.form-field input:focus { border-color: var(--primary); outline: 2px solid var(--ring); outline-offset: 2px; }
+.amount-input { display: flex; align-items: center; min-height: var(--control-height); border: 1px solid var(--input); border-radius: var(--radius); background: var(--card); }
+.amount-input:focus-within { border-color: var(--primary); outline: 2px solid var(--ring); outline-offset: 2px; }
+.amount-input input { width: 100%; min-width: 0; min-height: calc(var(--control-height) - 2px); padding: var(--space-2) var(--space-3); border: 0; background: transparent; text-align: right; font-variant-numeric: tabular-nums; }
+.amount-input span { padding-right: var(--space-3); color: var(--muted-foreground); }
+.field-note { margin: var(--space-2) 0 0; color: var(--muted-foreground); font-size: var(--text-small); line-height: 1.5; }
+.transport-options { display: flex; gap: var(--space-3); min-height: var(--control-height); align-items: center; }
+.transport-options label { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; cursor: pointer; }
+.transport-options input, .switch-label input { accent-color: var(--primary); width: 1.1rem; height: 1.1rem; }
+.fixed-schedule { padding-bottom: var(--space-8) !important; }
+.fixed-schedule > legend { margin-bottom: var(--space-2); }
+.fixed-schedule-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.fixed-schedule-heading .field-note { margin-top: 0; }
+.switch-label { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; flex: 0 0 auto; color: var(--primary); font-size: var(--text-small); font-weight: 600; cursor: pointer; }
+.fixed-fields { grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr)); margin-top: var(--space-5); }
+.form-error, .verification-complete { margin: 0 0 var(--space-5); padding: var(--space-5); border-left: 2px solid var(--destructive); background: var(--error-background); }
+.form-error strong { color: var(--destructive); }
+.form-error p, .verification-complete p { margin: var(--space-2) 0 0; }
+.verification-complete { border-left-color: var(--primary); background: var(--success-background); color: var(--primary); }
+.verification-complete span { display: block; margin-top: var(--space-2); color: var(--muted-foreground); font-size: var(--text-small); }
+.condition-submit { width: 100%; justify-content: space-between; }
+.condition-place { position: sticky; top: var(--space-6); min-width: 0; padding-top: var(--space-12); }
+.condition-place-detail { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-6) 0; border-bottom: 1px solid var(--border); }
+.condition-place-detail strong { font-size: var(--text-detail); line-height: 1.35; letter-spacing: -0.035em; }
+.condition-place-detail p { margin: 0; }
+.condition-place > .text-button { margin-top: var(--space-4); }
 .empty-results { padding: var(--space-12) 0; }
 .empty-results h3 { font-size: var(--text-title); font-weight: 600; margin-bottom: var(--space-3); }
 .empty-results p { color: var(--muted-foreground); }
@@ -186,4 +226,12 @@ h1 { font-size: var(--text-heading); letter-spacing: -0.05em; line-height: 1.3; 
   .search-field > svg { margin-left: var(--space-2); }
   .search-field .primary-button { padding-inline: var(--space-4); }
   .site-footer { flex-wrap: wrap; }
+  .condition-workspace { display: flex; flex-direction: column; gap: var(--space-8); padding-block: var(--space-8); }
+  .condition-main, .condition-place { width: 100%; }
+  .condition-place { position: static; padding-top: 0; order: -1; }
+  .condition-place-detail { padding-block: var(--space-4); }
+  .condition-place-detail strong { font-size: var(--text-title); }
+  .conditions-form { margin-top: var(--space-8); }
+  .schedule-fields, .budget-fields, .fixed-fields { grid-template-columns: 1fr 1fr; }
+  .date-field, .fixed-title { grid-column: 1 / -1; }
 }

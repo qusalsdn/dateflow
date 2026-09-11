@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { Place, PlaceSearchResult } from "@/lib/places/types";
 import { PlaceMap } from "./place-map";
+import { CourseConditionsForm } from "@/components/course/course-conditions-form";
 
 export function PlaceSearch() {
   const [query, setQuery] = useState("");
@@ -11,6 +12,7 @@ export function PlaceSearch() {
   const [nextPage, setNextPage] = useState<number | null>(null);
   const [preview, setPreview] = useState<Place | null>(null);
   const [selected, setSelected] = useState<Place | null>(null);
+  const [isEnteringConditions, setIsEnteringConditions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [failedPage, setFailedPage] = useState<number | null>(null);
@@ -71,6 +73,10 @@ export function PlaceSearch() {
     return all;
   }, [places, selected]);
 
+  if (selected && isEnteringConditions) {
+    return <CourseConditionsForm place={selected} onBack={() => setIsEnteringConditions(false)} />;
+  }
+
   return <div className="place-workspace">
     <section className="search-heading" aria-labelledby="search-title">
       <p className="eyebrow">01 <span /> 장소 선택</p>
@@ -124,10 +130,10 @@ export function PlaceSearch() {
         {preview.roadAddress && <p className="small muted">지번 · {preview.address}</p>}
         <a className="detail-link" href={preview.url} target="_blank" rel="noopener noreferrer">카카오맵에서 상세 정보 보기 <span aria-hidden="true">↗</span><span className="sr-only"> (새 탭)</span></a>
         <p className="small muted detail-note">영업시간과 가격은 방문 전 상세 정보에서 확인해 주세요.</p>
-        {selected?.id === preview.id ? <div className="selection-complete"><p><strong>이 장소를 선택했어요.</strong><br /><span className="small">현재 화면에서 유지돼요. 새로고침하면 초기화됩니다.</span></p><button className="text-button" onClick={() => { setSelected(null); if (!places.some((place) => place.id === selected.id)) setPreview(places[0] ?? null); setAnnouncement("필수 방문 장소 선택을 해제했어요."); }}>선택 해제</button></div> : <button className="primary-button select-button" onClick={() => { setSelected(preview); setAnnouncement(`${preview.name}을 필수 방문 장소로 선택했어요.`); }}>{selected ? "이 장소로 변경" : "이 장소를 필수 방문 장소로 선택"}<span aria-hidden="true">＋</span></button>}
+        {selected?.id === preview.id ? <div className="selection-complete"><p><strong>이 장소를 선택했어요.</strong><br /><span className="small">시간과 예산을 입력해 다음 단계로 넘어가세요.</span></p><button className="primary-button select-button" onClick={() => setIsEnteringConditions(true)}>조건 입력하기<span aria-hidden="true">→</span></button><button className="text-button" onClick={() => { setSelected(null); if (!places.some((place) => place.id === selected.id)) setPreview(places[0] ?? null); setAnnouncement("필수 방문 장소 선택을 해제했어요."); }}>선택 해제</button></div> : <button className="primary-button select-button" onClick={() => { setSelected(preview); setAnnouncement(`${preview.name}을 필수 방문 장소로 선택했어요.`); }}>{selected ? "이 장소로 변경" : "이 장소를 필수 방문 장소로 선택"}<span aria-hidden="true">＋</span></button>}
       </div>}
       {selected && preview?.id !== selected.id && <button className="selected-summary" onClick={() => setPreview(selected)}><span className="small">✓ 선택한 필수 방문 장소</span><strong>{selected.name}</strong><span className="small">선택한 장소 확인 ↗</span></button>}
-      <p className="scope-note">지금은 장소 선택까지 이용할 수 있어요.<br />시간·예산 입력과 코스 만들기는 준비 중이에요.</p>
+      <p className="scope-note">장소를 고르면 날짜·시간·예산을 이어서 입력할 수 있어요.</p>
     </aside>
     <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
   </div>;
