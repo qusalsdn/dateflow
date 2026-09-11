@@ -13,6 +13,7 @@ export function CourseConditionsForm({ place, onBack, onGenerated }: { place: Pl
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasFixedSchedule, setHasFixedSchedule] = useState(false);
+  const [courseScope, setCourseScope] = useState<CourseConditions["courseScope"]>("after");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,6 +30,11 @@ export function CourseConditionsForm({ place, onBack, onGenerated }: { place: Pl
         startTime: inputValue(form, "fixedStartTime"),
         endTime: inputValue(form, "fixedEndTime"),
       } : null,
+      requiredPlaceSchedule: {
+        startTime: inputValue(form, "requiredPlaceStartTime"),
+        endTime: inputValue(form, "requiredPlaceEndTime"),
+      },
+      courseScope,
     };
     setError("");
     setIsSubmitting(true);
@@ -60,12 +66,26 @@ export function CourseConditionsForm({ place, onBack, onGenerated }: { place: Pl
 
       <form className="conditions-form" onSubmit={submit} noValidate>
         <fieldset>
-          <legend>언제 만날까요?</legend>
+          <legend>코스 전체 시간</legend>
           <div className="field-grid schedule-fields">
             <div className="form-field date-field"><label htmlFor="date">날짜</label><input id="date" name="date" type="date" required /></div>
             <div className="form-field"><label htmlFor="start-time">시작 시간</label><input id="start-time" name="startTime" type="time" required /></div>
             <div className="form-field"><label htmlFor="end-time">종료 시간</label><input id="end-time" name="endTime" type="time" required /></div>
           </div>
+        </fieldset>
+
+        <fieldset className="required-place-schedule">
+          <legend>선택한 장소를 중심으로 구성하기</legend>
+          <p className="field-note">선택한 장소에 머무는 시간을 정한 뒤, 그 전후 중 원하는 방향을 골라 주세요.</p>
+          <div className="field-grid required-place-fields">
+            <div className="form-field"><label htmlFor="required-place-start-time">{place.name} 시작 시간</label><input id="required-place-start-time" name="requiredPlaceStartTime" type="time" required /></div>
+            <div className="form-field"><label htmlFor="required-place-end-time">{place.name} 종료 시간</label><input id="required-place-end-time" name="requiredPlaceEndTime" type="time" required /></div>
+          </div>
+          <div className="form-field course-scope-field"><span className="form-label" id="course-scope-label">어느 쪽 코스를 만들까요?</span><div className="scope-options" role="radiogroup" aria-labelledby="course-scope-label">
+            <label><input type="radio" name="courseScope" value="before" checked={courseScope === "before"} onChange={() => setCourseScope("before")} /><span>이전에 들를 곳</span></label>
+            <label><input type="radio" name="courseScope" value="after" checked={courseScope === "after"} onChange={() => setCourseScope("after")} /><span>이후에 갈 곳</span></label>
+            <label><input type="radio" name="courseScope" value="both" checked={courseScope === "both"} onChange={() => setCourseScope("both")} /><span>전후 모두</span></label>
+          </div></div>
         </fieldset>
 
         <fieldset>

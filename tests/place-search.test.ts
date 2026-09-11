@@ -125,6 +125,43 @@ test("코스는 필수 장소를 포함하고 3~4개 장소 및 이동 시간을
   assert.equal(places[1].travelFromPrevious?.isEstimate, true);
 });
 
+test("선택한 장소 시간을 중심으로 이전과 이후 코스를 각각 구성한다", () => {
+  const parsed = parseCourseConditions({ ...courseRequest, conditions: {
+    ...courseRequest.conditions,
+    startTime: "17:30",
+    endTime: "22:30",
+    fixedSchedule: null,
+    requiredPlaceSchedule: { startTime: "19:00", endTime: "20:00" },
+    courseScope: "both",
+  } });
+  const candidates = [
+    { ...parsed.place, id: "124", name: "성수 카페", category: "카페", latitude: 37.546, longitude: 127.041 },
+    { ...parsed.place, id: "125", name: "성수 전시", category: "전시", latitude: 37.548, longitude: 127.039 },
+  ];
+  const course = generateCourse(parsed, candidates);
+  const places = course.stops.filter((stop) => stop.kind === "place");
+  const requiredIndex = places.findIndex((stop) => stop.isRequired);
+  assert.equal(places.length, 3);
+  assert.equal(places[requiredIndex].startTime, "19:00");
+  assert.equal(places[requiredIndex].endTime, "20:00");
+  assert.ok(requiredIndex > 0 && requiredIndex < places.length - 1);
+  assert.ok(places[0].endTime <= "19:00");
+  assert.ok(places.at(-1)!.startTime >= "20:00");
+});
+
+test("선택한 장소 전후에 45분 방문 시간이 없으면 해당 방향을 거절한다", () => {
+  const parsed = parseCourseConditions({ ...courseRequest, conditions: {
+    ...courseRequest.conditions,
+    startTime: "19:00",
+    endTime: "20:45",
+    fixedSchedule: null,
+    requiredPlaceSchedule: { startTime: "19:00", endTime: "20:00" },
+    courseScope: "after",
+  } });
+  const candidates = [{ ...parsed.place, id: "124", name: "성수 카페", category: "카페", latitude: 37.546, longitude: 127.041 }];
+  assert.throws(() => generateCourse(parsed, candidates), /선택한 장소 후/);
+});
+
 test("코스는 고정 일정을 보존하고 예산 초과 조합을 거절", () => {
   const parsed = parseCourseConditions(courseRequest);
   const candidates = [

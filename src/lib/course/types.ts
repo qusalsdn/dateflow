@@ -3,6 +3,8 @@ import type { Place } from "../places/types";
 export const TRANSPORT_MODES = ["walking", "public_transit"] as const;
 
 export type TransportMode = (typeof TRANSPORT_MODES)[number];
+export const COURSE_SCOPES = ["before", "after", "both"] as const;
+export type CourseScope = (typeof COURSE_SCOPES)[number];
 
 export type FixedSchedule = {
   title: string;
@@ -17,6 +19,9 @@ export type CourseConditions = {
   budget: number;
   transportModes: TransportMode[];
   fixedSchedule: FixedSchedule | null;
+  /** The selected place can be a time-fixed centre of the course. */
+  requiredPlaceSchedule: Pick<FixedSchedule, "startTime" | "endTime"> | null;
+  courseScope: CourseScope | null;
 };
 
 export type ValidatedCourseRequest = {

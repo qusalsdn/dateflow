@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const currentPlaces = body.course.stops
       .filter((stop): stop is Record<string, unknown> => isRecord(stop) && stop.kind === "place")
       .map((stop) => parseCoursePlace({ id: stop.id, name: stop.name, category: stop.category, address: stop.address, roadAddress: stop.address, latitude: stop.latitude, longitude: stop.longitude }, "코스 장소"));
-    if (currentPlaces.length < 3 || currentPlaces.length > 4 || currentPlaces[0]?.id !== parsed.place.id || !currentPlaces.some((place) => place.id === body.stopId)) {
+    if (currentPlaces.length < 1 || currentPlaces.length > 4 || !currentPlaces.some((place) => place.id === parsed.place.id) || !currentPlaces.some((place) => place.id === body.stopId)) {
       throw new CourseConditionError("INVALID_INPUT", "현재 코스를 다시 확인해 주세요.");
     }
     const course = replaceCourseStop(parsed, currentPlaces, body.stopId, await collectNearbyCandidates(parsed.place));

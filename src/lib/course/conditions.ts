@@ -3,6 +3,7 @@ import "server-only";
 import type { Place } from "../places/types";
 import {
   TRANSPORT_MODES,
+  COURSE_SCOPES,
   type CourseConditions,
   type FixedSchedule,
   type TransportMode,
@@ -99,6 +100,26 @@ function parseFixedSchedule(value: unknown, startTime: string, endTime: string):
   return { title, startTime: fixedStart, endTime: fixedEnd };
 }
 
+function parseRequiredPlaceSchedule(value: unknown, startTime: string, endTime: string) {
+  if (value === null || value === undefined) return null;
+  if (!isRecord(value)) throw new CourseConditionError("INVALID_REQUIRED_SCHEDULE", "선택한 장소의 방문 시간을 다시 입력해 주세요.");
+  const requiredStart = parseTime(value.startTime, "선택한 장소 시작 시간");
+  const requiredEnd = parseTime(value.endTime, "선택한 장소 종료 시간");
+  if (minutes(requiredStart) >= minutes(requiredEnd)
+    || minutes(requiredStart) < minutes(startTime) || minutes(requiredEnd) > minutes(endTime)) {
+    throw new CourseConditionError("INVALID_REQUIRED_SCHEDULE", "선택한 장소 방문 시간은 코스 전체 시간 안에서 정해 주세요.");
+  }
+  return { startTime: requiredStart, endTime: requiredEnd };
+}
+
+function parseCourseScope(value: unknown, hasRequiredPlaceSchedule: boolean) {
+  if (value === null || value === undefined) return null;
+  if (!hasRequiredPlaceSchedule || typeof value !== "string" || !(COURSE_SCOPES as readonly string[]).includes(value)) {
+    throw new CourseConditionError("INVALID_COURSE_SCOPE", "선택한 장소 전후 중 구성할 범위를 다시 선택해 주세요.");
+  }
+  return value as CourseConditions["courseScope"];
+}
+
 export function parseCourseConditions(value: unknown): ValidatedCourseRequest {
   if (!isRecord(value) || !isRecord(value.conditions)) throw new CourseConditionError("INVALID_INPUT", "입력한 조건을 다시 확인해 주세요.");
   const place = parseCoursePlace(value.place);
@@ -107,13 +128,20 @@ export function parseCourseConditions(value: unknown): ValidatedCourseRequest {
   const endTime = parseTime(value.conditions.endTime, "종료 시간");
   if (minutes(startTime) >= minutes(endTime)) throw new CourseConditionError("INVALID_TIME", "종료 시간은 시작 시간보다 늦어야 해요.");
 
+  const requiredPlaceSchedule = parseRequiredPlaceSchedule(value.conditions.requiredPlaceSchedule, startTime, endTime);
+  const fixedSchedule = parseFixedSchedule(value.conditions.fixedSchedule, startTime, endTime);
+  if (requiredPlaceSchedule && fixedSchedule) {
+    throw new CourseConditionError("UNSUPPORTED_FIXED_SCHEDULE", "선택한 장소를 중심으로 코스를 만들 때는 다른 고정 일정을 함께 넣을 수 없어요.");
+  }
   const conditions: CourseConditions = {
     date,
     startTime,
     endTime,
     budget: parseBudget(value.conditions.budget),
     transportModes: parseTransportModes(value.conditions.transportModes),
-    fixedSchedule: parseFixedSchedule(value.conditions.fixedSchedule, startTime, endTime),
+    fixedSchedule,
+    requiredPlaceSchedule,
+    courseScope: parseCourseScope(value.conditions.courseScope, requiredPlaceSchedule !== null),
   };
   return { place, conditions };
 }

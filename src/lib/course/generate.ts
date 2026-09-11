@@ -83,7 +83,54 @@ function buildCourse(request: ValidatedCourseRequest, places: Place[]): Generate
   return { date: conditions.date, requiredPlace: place, conditions, stops, totalDurationMinutes: totalWindow, totalTravelMinutes: travelLegs.reduce((sum, leg) => sum + leg.minutes, 0), estimatedTotalCost: totalCost, budget: conditions.budget, hasEstimatedTravel: true, candidateSource: "kakao" };
 }
 
+function buildAnchoredCourse(request: ValidatedCourseRequest, before: Place | null, after: Place | null): GeneratedCourse {
+  const { place, conditions } = request;
+  const schedule = conditions.requiredPlaceSchedule;
+  if (!schedule || !conditions.courseScope) return buildCourse(request, [place, ...[before, after].filter((candidate): candidate is Place => candidate !== null)]);
+
+  const start = minuteOf(conditions.startTime);
+  const end = minuteOf(conditions.endTime);
+  const anchorStart = minuteOf(schedule.startTime);
+  const anchorEnd = minuteOf(schedule.endTime);
+  const stops: CourseStop[] = [];
+  let totalTravelMinutes = 0;
+
+  if (before) {
+    const leg = travel(before, place, conditions.transportModes);
+    const visitMinutes = Math.floor((anchorStart - start - leg.minutes) / 5) * 5;
+    if (visitMinutes < 45) throw new Error("선택한 장소 전에는 이동과 방문 시간을 맞출 수 없어요. 코스 시작 시간을 앞당기거나 장소 시간을 조정해 주세요.");
+    totalTravelMinutes += leg.minutes;
+    stops.push({ id: before.id, kind: "place", name: before.name, category: before.category, address: before.roadAddress || before.address, latitude: before.latitude, longitude: before.longitude, startTime: timeOf(start), endTime: timeOf(start + visitMinutes), stayMinutes: visitMinutes, estimatedCost: estimateCost(before), isRequired: false, travelFromPrevious: null });
+    stops.push({ id: place.id, kind: "place", name: place.name, category: place.category, address: place.roadAddress || place.address, latitude: place.latitude, longitude: place.longitude, startTime: schedule.startTime, endTime: schedule.endTime, stayMinutes: anchorEnd - anchorStart, estimatedCost: estimateCost(place), isRequired: true, travelFromPrevious: leg });
+  } else {
+    stops.push({ id: place.id, kind: "place", name: place.name, category: place.category, address: place.roadAddress || place.address, latitude: place.latitude, longitude: place.longitude, startTime: schedule.startTime, endTime: schedule.endTime, stayMinutes: anchorEnd - anchorStart, estimatedCost: estimateCost(place), isRequired: true, travelFromPrevious: null });
+  }
+
+  if (after) {
+    const leg = travel(place, after, conditions.transportModes);
+    const visitStart = anchorEnd + leg.minutes;
+    const visitMinutes = Math.floor((end - visitStart) / 5) * 5;
+    if (visitMinutes < 45) throw new Error("선택한 장소 후에는 이동과 방문 시간을 맞출 수 없어요. 코스 종료 시간을 늦추거나 장소 시간을 조정해 주세요.");
+    totalTravelMinutes += leg.minutes;
+    stops.push({ id: after.id, kind: "place", name: after.name, category: after.category, address: after.roadAddress || after.address, latitude: after.latitude, longitude: after.longitude, startTime: timeOf(visitStart), endTime: timeOf(visitStart + visitMinutes), stayMinutes: visitMinutes, estimatedCost: estimateCost(after), isRequired: false, travelFromPrevious: leg });
+  }
+
+  const totalCost = stops.reduce((sum, stop) => sum + (stop.estimatedCost ?? 0), 0);
+  if (conditions.budget > 0 && totalCost > conditions.budget) throw new Error("입력한 예산 안에 코스를 구성하지 못했어요. 예산을 늘리거나 다른 장소를 선택해 주세요.");
+  return { date: conditions.date, requiredPlace: place, conditions, stops, totalDurationMinutes: end - start, totalTravelMinutes, estimatedTotalCost: totalCost, budget: conditions.budget, hasEstimatedTravel: true, candidateSource: "kakao" };
+}
+
 export function generateCourse(request: ValidatedCourseRequest, candidates: Place[]): GeneratedCourse {
+  if (request.conditions.requiredPlaceSchedule && request.conditions.courseScope) {
+    const pool = candidates.filter((candidate) => candidate.id !== request.place.id);
+    const before = request.conditions.courseScope === "after" ? null : chooseCandidates(request.place, pool, 1, request.conditions.budget)[0] ?? null;
+    const afterPool = before ? pool.filter((candidate) => candidate.id !== before.id) : pool;
+    const after = request.conditions.courseScope === "before" ? null : chooseCandidates(request.place, afterPool, 1, request.conditions.budget)[0] ?? null;
+    if ((request.conditions.courseScope === "before" && !before) || (request.conditions.courseScope === "after" && !after) || (request.conditions.courseScope === "both" && (!before || !after))) {
+      throw new Error("선택한 장소 주변 후보가 충분하지 않아 코스를 만들 수 없어요. 다른 장소를 선택해 주세요.");
+    }
+    return buildAnchoredCourse(request, before, after);
+  }
   const totalWindow = minuteOf(request.conditions.endTime) - minuteOf(request.conditions.startTime);
   const fixedMinutes = request.conditions.fixedSchedule ? minuteOf(request.conditions.fixedSchedule.endTime) - minuteOf(request.conditions.fixedSchedule.startTime) : 0;
   const desiredCount = totalWindow - fixedMinutes >= 315 ? SERVICE_CONFIG.maxStops : SERVICE_CONFIG.minStops;
@@ -94,7 +141,8 @@ export function generateCourse(request: ValidatedCourseRequest, candidates: Plac
 
 export function replaceCourseStop(request: ValidatedCourseRequest, currentPlaces: Place[], stopId: string, candidates: Place[]): GeneratedCourse {
   const replaceIndex = currentPlaces.findIndex((candidate) => candidate.id === stopId);
-  if (replaceIndex < 1) throw new Error("필수 방문 장소는 바꿀 수 없어요.");
+  const requiredIndex = currentPlaces.findIndex((candidate) => candidate.id === request.place.id);
+  if (replaceIndex < 0 || replaceIndex === requiredIndex) throw new Error("필수 방문 장소는 바꿀 수 없어요.");
   const excludedIds = new Set(currentPlaces.map((candidate) => candidate.id));
   const previous = currentPlaces[replaceIndex - 1];
   const usedCategories = new Set(currentPlaces.filter((_, index) => index !== replaceIndex).map((candidate) => candidate.category));
@@ -105,5 +153,9 @@ export function replaceCourseStop(request: ValidatedCourseRequest, currentPlaces
   const replacement = alternatives.sort((a, b) => score(b, previous, usedCategories, request.conditions.budget) - score(a, previous, usedCategories, request.conditions.budget))[0];
   const updatedPlaces = [...currentPlaces];
   updatedPlaces[replaceIndex] = replacement;
+  if (request.conditions.requiredPlaceSchedule && request.conditions.courseScope) {
+    const anchorIndex = updatedPlaces.findIndex((candidate) => candidate.id === request.place.id);
+    return buildAnchoredCourse(request, updatedPlaces[anchorIndex - 1] ?? null, updatedPlaces[anchorIndex + 1] ?? null);
+  }
   return buildCourse(request, updatedPlaces);
 }

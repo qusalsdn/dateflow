@@ -18,7 +18,7 @@ export function parseSavedCourse(value: unknown): GeneratedCourse {
     throw new CourseConditionError("INVALID_INPUT", "저장할 코스를 다시 확인해 주세요.");
   }
   const places = value.stops.filter((stop): stop is Record<string, unknown> => isRecord(stop) && stop.kind === "place");
-  if (places.length < 3 || places.length > 4 || places[0]?.id !== request.place.id) throw new CourseConditionError("INVALID_INPUT", "저장할 코스를 다시 확인해 주세요.");
+  if (places.length < 1 || places.length > 4 || !places.some((stop) => stop.id === request.place.id)) throw new CourseConditionError("INVALID_INPUT", "저장할 코스를 다시 확인해 주세요.");
   const seen = new Set<string>();
   for (const stop of value.stops) {
     if (!isRecord(stop) || (stop.kind !== "place" && stop.kind !== "fixed_schedule") || typeof stop.id !== "string" || typeof stop.name !== "string" || !isTime(stop.startTime) || !isTime(stop.endTime) || typeof stop.stayMinutes !== "number" || stop.stayMinutes < 0 || !isRecord(stop.travelFromPrevious) && stop.travelFromPrevious !== null) {
