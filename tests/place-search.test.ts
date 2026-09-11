@@ -6,6 +6,7 @@ import { createPlaceSearchService } from "../src/lib/places/search-service";
 import type { PlaceSearchResult } from "../src/lib/places/types";
 import { CourseConditionError, parseCourseConditions } from "../src/lib/course/conditions";
 import { generateCourse, replaceCourseStop } from "../src/lib/course/generate";
+import { isCourseWorthyPlace } from "../src/lib/course/candidates";
 
 const document = { id: "1", place_name: "테스트 장소", address_name: "서울 성동구 성수동1가", road_address_name: "", category_name: "여행 > 공원", x: "127.0376", y: "37.5443", place_url: "javascript:alert(1)" };
 const empty: PlaceSearchResult = { places: [], nextPage: null };
@@ -123,6 +124,23 @@ test("코스는 필수 장소를 포함하고 3~4개 장소 및 이동 시간을
   assert.equal(places[0].isRequired, true);
   assert.ok(course.totalTravelMinutes > 0);
   assert.equal(places[1].travelFromPrevious?.isEstimate, true);
+});
+
+test("코스 후보에서 공원 안의 부대시설을 제외하고, 다른 활동 유형을 우선한다", () => {
+  const parsed = parseCourseConditions({ ...courseRequest, conditions: { ...courseRequest.conditions, fixedSchedule: null } });
+  const candidates = [
+    { ...parsed.place, id: "124", name: "용왕산근린공원 게이트볼장", category: "게이트볼장", latitude: 37.5447, longitude: 127.0376 },
+    { ...parsed.place, id: "125", name: "성수 데이트 카페", category: "카페", latitude: 37.552, longitude: 127.047 },
+    { ...parsed.place, id: "126", name: "성수 맛집", category: "음식점", latitude: 37.557, longitude: 127.05 },
+    { ...parsed.place, id: "127", name: "서울숲 전시", category: "전시", latitude: 37.55, longitude: 127.045 },
+    { ...parsed.place, id: "128", name: "목마공원", category: "도시근린공원", latitude: 37.552, longitude: 127.05 },
+  ];
+  assert.equal(isCourseWorthyPlace(candidates[0]), false);
+  const course = generateCourse(parsed, candidates.filter(isCourseWorthyPlace));
+  const places = course.stops.filter((stop) => stop.kind === "place");
+  assert.ok(!places.some((place) => /게이트볼/u.test(place.name)));
+  assert.ok(!places.some((place) => place.name === "목마공원"));
+  assert.equal(new Set(places.map((place) => place.category)).size, 4);
 });
 
 test("선택한 장소 시간을 중심으로 이전과 이후 코스를 각각 구성한다", () => {

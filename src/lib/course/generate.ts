@@ -29,22 +29,51 @@ function estimateCost(place: Place) {
   return 40_000;
 }
 
+function activityType(place: Place) {
+  const text = `${place.category} ${place.name}`;
+  if (/카페|커피|디저트|베이커리/u.test(text)) return "cafe";
+  if (/음식|식당|레스토랑|맛집|주점|바|술/u.test(text)) return "restaurant";
+  if (/공원|산책|한강|수목원/u.test(text)) return "park";
+  if (/전시|미술|박물|공연|문화|갤러리/u.test(text)) return "culture";
+  return "other";
+}
+
+function isSameKindOfOuting(anchor: Place, candidate: Place) {
+  const anchorType = activityType(anchor);
+  return (anchorType === "park" || anchorType === "culture") && activityType(candidate) === anchorType;
+}
+
+function tooClose(a: Place, b: Place, minimumMeters = 180) {
+  return distance(a, b) < minimumMeters;
+}
+
 function chooseCandidates(anchor: Place, candidates: Place[], count: number, budget: number) {
   const picked: Place[] = [];
-  const usedCategories = new Set([anchor.category]);
+  const usedCategories = new Set([activityType(anchor)]);
   let current = anchor;
   while (picked.length < count) {
-    const remaining = candidates.filter((candidate) => !picked.some((place) => place.id === candidate.id));
+    const remaining = candidates.filter((candidate) => candidate.id !== anchor.id
+      && !picked.some((place) => place.id === candidate.id)
+      // A park or exhibition selected by the user is the destination already.
+      // Do not fill the rest of that date with more entries of the same kind.
+      && !isSameKindOfOuting(anchor, candidate)
+      // A separate destination should not be another facility in the same park
+      // or the shop directly next door.  The lower value still works in dense
+      // commercial streets while eliminating the 0.1 km duplicate shown here.
+      && !tooClose(anchor, candidate)
+      && !picked.some((place) => tooClose(place, candidate)));
     if (!remaining.length) break;
     const next = remaining.sort((a, b) => score(b, current, usedCategories, budget) - score(a, current, usedCategories, budget))[0];
-    picked.push(next); usedCategories.add(next.category); current = next;
+    picked.push(next); usedCategories.add(activityType(next)); current = next;
   }
   return picked;
 }
 
 function score(candidate: Place, current: Place, usedCategories: Set<string>, budget: number) {
-  const distanceScore = Math.max(0, 70 - distance(current, candidate) / 70);
-  const diversity = usedCategories.has(candidate.category) ? 0 : 24;
+  // Prefer a short, meaningful leg over a near-zero leg; the latter commonly
+  // represents an amenity inside the selected venue rather than a next stop.
+  const distanceScore = Math.max(0, 38 - Math.abs(distance(current, candidate) - 850) / 80);
+  const diversity = usedCategories.has(activityType(candidate)) ? 0 : 28;
   const budgetScore = budget === 0 || estimateCost(candidate) <= budget / 2 ? 8 : -18;
   return distanceScore + diversity + budgetScore;
 }
