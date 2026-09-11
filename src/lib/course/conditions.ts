@@ -52,7 +52,7 @@ function minutes(time: string) {
   return hour * 60 + minute;
 }
 
-function parsePlace(value: unknown): Place {
+export function parseCoursePlace(value: unknown, label = "필수 방문 장소"): Place {
   if (!isRecord(value)) throw new CourseConditionError("INVALID_PLACE", "필수 방문 장소를 다시 선택해 주세요.");
   const id = typeof value.id === "string" && /^\d{1,30}$/.test(value.id) ? value.id : "";
   const name = text(value.name, "장소 이름", 120);
@@ -65,7 +65,7 @@ function parsePlace(value: unknown): Place {
     || !Number.isFinite(latitude) || !Number.isFinite(longitude)
     || latitude < SEOUL_BOUNDS.minLatitude || latitude > SEOUL_BOUNDS.maxLatitude
     || longitude < SEOUL_BOUNDS.minLongitude || longitude > SEOUL_BOUNDS.maxLongitude) {
-    throw new CourseConditionError("INVALID_PLACE", "서울의 필수 방문 장소를 다시 선택해 주세요.");
+    throw new CourseConditionError("INVALID_PLACE", `서울의 ${label}를 다시 선택해 주세요.`);
   }
   return { id, name, category, address, roadAddress, latitude, longitude, url: `https://place.map.kakao.com/${id}` };
 }
@@ -101,7 +101,7 @@ function parseFixedSchedule(value: unknown, startTime: string, endTime: string):
 
 export function parseCourseConditions(value: unknown): ValidatedCourseRequest {
   if (!isRecord(value) || !isRecord(value.conditions)) throw new CourseConditionError("INVALID_INPUT", "입력한 조건을 다시 확인해 주세요.");
-  const place = parsePlace(value.place);
+  const place = parseCoursePlace(value.place);
   const date = parseDate(value.conditions.date);
   const startTime = parseTime(value.conditions.startTime, "시작 시간");
   const endTime = parseTime(value.conditions.endTime, "종료 시간");

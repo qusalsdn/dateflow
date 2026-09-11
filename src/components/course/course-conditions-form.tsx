@@ -2,20 +2,17 @@
 
 import { useState, type FormEvent } from "react";
 import type { Place } from "@/lib/places/types";
-import type { CourseConditions, ValidatedCourseRequest } from "@/lib/course/types";
-
-const NUMBER_FORMATTER = new Intl.NumberFormat("ko-KR");
+import type { CourseConditions, GeneratedCourse } from "@/lib/course/types";
 
 function inputValue(form: FormData, name: string) {
   const value = form.get(name);
   return typeof value === "string" ? value : "";
 }
 
-export function CourseConditionsForm({ place, onBack }: { place: Place; onBack: () => void }) {
+export function CourseConditionsForm({ place, onBack, onGenerated }: { place: Place; onBack: () => void; onGenerated: (course: GeneratedCourse) => void }) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasFixedSchedule, setHasFixedSchedule] = useState(false);
-  const [verified, setVerified] = useState<ValidatedCourseRequest | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,10 +31,9 @@ export function CourseConditionsForm({ place, onBack }: { place: Place; onBack: 
       } : null,
     };
     setError("");
-    setVerified(null);
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/course-conditions", {
+      const response = await fetch("/api/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
@@ -47,7 +43,7 @@ export function CourseConditionsForm({ place, onBack }: { place: Place; onBack: 
       if (!isResponse(data)) throw new Error("입력한 조건을 다시 확인해 주세요.");
       if ("error" in data) throw new Error(data.error.message);
       if (!response.ok) throw new Error("입력한 조건을 다시 확인해 주세요.");
-      setVerified(data.data);
+      onGenerated(data.data);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "입력한 조건을 다시 확인해 주세요.");
     } finally {
@@ -91,8 +87,7 @@ export function CourseConditionsForm({ place, onBack }: { place: Place; onBack: 
         </fieldset>
 
         {error && <div className="form-error" role="alert"><strong>조건을 확인하지 못했어요</strong><p>{error}</p></div>}
-        {verified && <div className="verification-complete" role="status"><strong>입력한 조건을 확인했어요.</strong><p>{formatVerification(verified.conditions)}</p><span>코스 생성은 다음 단계에서 이어집니다.</span></div>}
-        <button className="primary-button condition-submit" type="submit" disabled={isSubmitting}>{isSubmitting ? "조건 확인 중…" : "이 조건으로 확인하기"}<span aria-hidden="true">→</span></button>
+        <button className="primary-button condition-submit" type="submit" disabled={isSubmitting}>{isSubmitting ? "코스 만드는 중…" : "코스 만들기"}<span aria-hidden="true">→</span></button>
       </form>
     </section>
 
@@ -104,12 +99,6 @@ export function CourseConditionsForm({ place, onBack }: { place: Place; onBack: 
   </div>;
 }
 
-function isResponse(value: unknown): value is { data: ValidatedCourseRequest } | { error: { message: string } } {
+function isResponse(value: unknown): value is { data: GeneratedCourse } | { error: { message: string } } {
   return typeof value === "object" && value !== null && ("data" in value || "error" in value);
-}
-
-function formatVerification(conditions: CourseConditions) {
-  const transport = conditions.transportModes.map((mode) => mode === "walking" ? "도보" : "대중교통").join(" · ");
-  const fixed = conditions.fixedSchedule ? ` · 고정 일정 ${conditions.fixedSchedule.title} ${conditions.fixedSchedule.startTime}–${conditions.fixedSchedule.endTime}` : "";
-  return `${conditions.date} · ${conditions.startTime}–${conditions.endTime} · ${NUMBER_FORMATTER.format(conditions.budget)}원 · ${transport}${fixed}`;
 }

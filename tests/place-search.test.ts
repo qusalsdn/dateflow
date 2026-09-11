@@ -5,6 +5,7 @@ import { normalizePlaces } from "../src/lib/kakao/normalize-places";
 import { createPlaceSearchService } from "../src/lib/places/search-service";
 import type { PlaceSearchResult } from "../src/lib/places/types";
 import { CourseConditionError, parseCourseConditions } from "../src/lib/course/conditions";
+import { generateCourse, replaceCourseStop } from "../src/lib/course/generate";
 
 const document = { id: "1", place_name: "테스트 장소", address_name: "서울 성동구 성수동1가", road_address_name: "", category_name: "여행 > 공원", x: "127.0376", y: "37.5443", place_url: "javascript:alert(1)" };
 const empty: PlaceSearchResult = { places: [], nextPage: null };
@@ -106,4 +107,53 @@ test("유효하지 않은 장소, 시간, 고정 일정, 예산, 이동 수단�
     { ...courseRequest, conditions: { ...courseRequest.conditions, date: "2026-02-30" } },
   ];
   for (const invalid of invalidCases) assert.throws(() => parseCourseConditions(invalid), CourseConditionError);
+});
+
+test("코스는 필수 장소를 포함하고 3~4개 장소 및 이동 시간을 만든다", () => {
+  const parsed = parseCourseConditions({ ...courseRequest, conditions: { ...courseRequest.conditions, fixedSchedule: null } });
+  const candidates = [
+    { ...parsed.place, id: "124", name: "성수 카페", category: "카페", latitude: 37.546, longitude: 127.041 },
+    { ...parsed.place, id: "125", name: "성수 전시", category: "전시", latitude: 37.548, longitude: 127.039 },
+    { ...parsed.place, id: "126", name: "성수 식당", category: "음식점", latitude: 37.55, longitude: 127.036 },
+  ];
+  const course = generateCourse(parsed, candidates);
+  const places = course.stops.filter((stop) => stop.kind === "place");
+  assert.ok(places.length >= 3 && places.length <= 4);
+  assert.equal(places[0].id, parsed.place.id);
+  assert.equal(places[0].isRequired, true);
+  assert.ok(course.totalTravelMinutes > 0);
+  assert.equal(places[1].travelFromPrevious?.isEstimate, true);
+});
+
+test("코스는 고정 일정을 보존하고 예산 초과 조합을 거절", () => {
+  const parsed = parseCourseConditions(courseRequest);
+  const candidates = [
+    { ...parsed.place, id: "124", name: "성수 카페", category: "카페", latitude: 37.546, longitude: 127.041 },
+    { ...parsed.place, id: "125", name: "성수 전시", category: "전시", latitude: 37.548, longitude: 127.039 },
+    { ...parsed.place, id: "126", name: "성수 식당", category: "음식점", latitude: 37.55, longitude: 127.036 },
+  ];
+  const course = generateCourse(parsed, candidates);
+  assert.equal(course.stops.find((stop) => stop.kind === "fixed_schedule")?.startTime, "19:30");
+  const lowBudget = parseCourseConditions({ ...courseRequest, conditions: { ...courseRequest.conditions, budget: 1, fixedSchedule: null } });
+  assert.throws(() => generateCourse(lowBudget, candidates), /예산/);
+});
+
+test("장소 교체는 필수 장소와 고정 일정을 보존하고 이후 시간표를 다시 계산", () => {
+  const parsed = parseCourseConditions({ ...courseRequest, conditions: { ...courseRequest.conditions, budget: 200_000 } });
+  const candidates = [
+    { ...parsed.place, id: "124", name: "성수 카페", category: "카페", latitude: 37.546, longitude: 127.041 },
+    { ...parsed.place, id: "125", name: "성수 전시", category: "전시", latitude: 37.548, longitude: 127.039 },
+    { ...parsed.place, id: "126", name: "성수 식당", category: "음식점", latitude: 37.55, longitude: 127.036 },
+    { ...parsed.place, id: "127", name: "성수 서점", category: "서점", latitude: 37.547, longitude: 127.044 },
+  ];
+  const course = generateCourse(parsed, candidates);
+  const currentPlaces = course.stops.filter((stop) => stop.kind === "place").map((stop) => ({ ...parsed.place, id: stop.id, name: stop.name, category: stop.category, address: stop.address, roadAddress: stop.address, latitude: stop.latitude!, longitude: stop.longitude! }));
+  const replacedId = currentPlaces[1].id;
+  const replacement = replaceCourseStop(parsed, currentPlaces, replacedId, candidates);
+  const replacementPlaces = replacement.stops.filter((stop) => stop.kind === "place");
+  assert.equal(replacementPlaces[0].id, parsed.place.id);
+  assert.ok(!replacementPlaces.some((stop) => stop.id === replacedId));
+  assert.equal(replacement.stops.find((stop) => stop.kind === "fixed_schedule")?.startTime, "19:30");
+  assert.ok(replacement.stops.at(-1)!.endTime <= parsed.conditions.endTime);
+  assert.throws(() => replaceCourseStop(parsed, currentPlaces, parsed.place.id, candidates), /필수/);
 });

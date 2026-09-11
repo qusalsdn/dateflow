@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import type { Place, PlaceSearchResult } from "@/lib/places/types";
 import { PlaceMap } from "./place-map";
 import { CourseConditionsForm } from "@/components/course/course-conditions-form";
+import { CourseResult } from "@/components/course/course-result";
+import type { GeneratedCourse } from "@/lib/course/types";
 
 export function PlaceSearch() {
   const [query, setQuery] = useState("");
@@ -13,6 +15,7 @@ export function PlaceSearch() {
   const [preview, setPreview] = useState<Place | null>(null);
   const [selected, setSelected] = useState<Place | null>(null);
   const [isEnteringConditions, setIsEnteringConditions] = useState(false);
+  const [course, setCourse] = useState<GeneratedCourse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [failedPage, setFailedPage] = useState<number | null>(null);
@@ -73,8 +76,9 @@ export function PlaceSearch() {
     return all;
   }, [places, selected]);
 
+  if (course) return <CourseResult course={course} onBack={() => setCourse(null)} onUpdated={setCourse} />;
   if (selected && isEnteringConditions) {
-    return <CourseConditionsForm place={selected} onBack={() => setIsEnteringConditions(false)} />;
+    return <CourseConditionsForm place={selected} onBack={() => setIsEnteringConditions(false)} onGenerated={setCourse} />;
   }
 
   return <div className="place-workspace">

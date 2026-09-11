@@ -23,3 +23,32 @@ export type ValidatedCourseRequest = {
   place: Place;
   conditions: CourseConditions;
 };
+
+export type CourseStop = {
+  id: string;
+  kind: "place" | "fixed_schedule";
+  name: string;
+  category: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  startTime: string;
+  endTime: string;
+  stayMinutes: number;
+  estimatedCost: number | null;
+  isRequired: boolean;
+  travelFromPrevious: { minutes: number; distanceMeters: number; mode: TransportMode; isEstimate: true } | null;
+};
+
+export type GeneratedCourse = {
+  date: string;
+  requiredPlace: Place;
+  conditions: CourseConditions;
+  stops: CourseStop[];
+  totalDurationMinutes: number;
+  totalTravelMinutes: number;
+  estimatedTotalCost: number | null;
+  budget: number;
+  hasEstimatedTravel: true;
+  candidateSource: "kakao";
+};
