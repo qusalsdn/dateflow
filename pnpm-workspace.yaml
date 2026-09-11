@@ -1,0 +1,4 @@
+# The platform-specific resolver is provided as an optional dependency.
+# Do not run its fallback download script during installation.
+allowBuilds:
+  unrs-resolver: false
